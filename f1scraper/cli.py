@@ -84,30 +84,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "alerts":
-        from .alerts import (
-            ConsoleNotifier,
-            EmailConfig,
-            EmailNotifier,
-            FileNotifier,
-            default_notifier,
-            load_criteria,
-            run_alerts,
-        )
+        from .alerts import AlertCriteria, build_notifier, load_config, run_alerts
 
-        criteria = load_criteria(args.config)
-        if args.channel == "console":
-            notifier = ConsoleNotifier()
-        elif args.channel == "file":
-            notifier = FileNotifier()
-        elif args.channel == "email":
-            cfg = EmailConfig.from_env()
-            if cfg is None:
-                print("Brak konfiguracji SMTP w zmiennych środowiskowych "
-                      "(SMTP_HOST, ALERT_TO, ...). Przerywam.")
-                return 1
-            notifier = EmailNotifier(cfg)
-        else:
-            notifier = default_notifier()
+        config = load_config(args.config)
+        criteria = [AlertCriteria.from_dict(d) for d in config["alerts"]]
+        notifier = build_notifier(args.channel, config.get("email"))
+        if notifier is None:
+            print("Zażądano kanału e-mail, ale brak konfiguracji SMTP w zmiennych "
+                  "środowiskowych (SMTP_HOST, SMTP_USER, SMTP_PASS). Przerywam.")
+            return 1
 
         matches = run_alerts(criteria, notifier, refresh=not args.no_refresh)
         print(f"Sprawdzono {len(criteria)} kryteriów. Nowych trafień: {len(matches)}.")

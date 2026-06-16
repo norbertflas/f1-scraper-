@@ -74,6 +74,7 @@ Definiujesz kryteria w pliku JSON (`alerts_config.example.json` jako wzór):
 
 ```json
 {
+  "email": { "to": "norbertflas@hotmail.com" },
   "alerts": [
     {
       "name": "Monza – dobra trybuna w budżecie",
@@ -84,6 +85,10 @@ Definiujesz kryteria w pliku JSON (`alerts_config.example.json` jako wzór):
   ]
 }
 ```
+
+Adres odbiorcy (`email.to`) bierzemy z pliku konfiguracji. Każdy e-mail
+zawiera komplet informacji o ofercie (wyścig, trybuna, kategoria, cena w €,
+jakość miejsca, wartość, źródło, dostępność) **oraz link „Kup”** do zakupu.
 
 Uruchomienie sprawdza oferty i powiadamia o **nowych** trafieniach:
 
@@ -97,16 +102,23 @@ python -m f1scraper.cli alerts --config alerts_config.json [--channel auto|email
 - **Kanały**: `email` (SMTP), `file` (`data/alerts.jsonl`), `console`.
   Tryb `auto` wybiera e-mail, jeśli skonfigurowany, inaczej plik.
 
-### Konfiguracja e-maila (zmienne środowiskowe)
+### Konfiguracja e-maila
+
+Adres **odbiorcy** ustawiasz w pliku konfiguracji (`email.to`). Dane logowania
+SMTP **zawsze** pochodzą ze zmiennych środowiskowych — nigdy nie trzymamy
+haseł w repozytorium:
 
 ```bash
-export SMTP_HOST=smtp.gmail.com
+export SMTP_HOST=smtp.office365.com   # dla hotmail/outlook
 export SMTP_PORT=587
-export SMTP_USER=ty@gmail.com
+export SMTP_USER=norbertflas@hotmail.com
 export SMTP_PASS=haslo_aplikacji      # NIE zwykłe hasło – użyj App Password
-export ALERT_FROM=ty@gmail.com
-export ALERT_TO=ty@gmail.com
+export ALERT_FROM=norbertflas@hotmail.com
+# ALERT_TO opcjonalnie – nadpisuje email.to z pliku konfiguracji
 ```
+
+> Konto Microsoft/Hotmail wymaga zwykle hasła aplikacji (App Password) przy
+> włączonym 2FA. Dla Gmaila użyj `smtp.gmail.com` i również App Password.
 
 Najlepiej uruchamiać cyklicznie (np. `cron` co godzinę):
 

@@ -145,9 +145,16 @@ class EmailConfig:
     use_tls: bool = True
 
     @classmethod
-    def from_env(cls) -> Optional["EmailConfig"]:
+    def from_env(cls, recipient_override: Optional[str] = None) -> Optional["EmailConfig"]:
+        """Buduje konfigurację SMTP z ENV.
+
+        Dane logowania (host/user/hasło) ZAWSZE pochodzą ze zmiennych
+        środowiskowych – nigdy nie trzymamy ich w repo. Adres odbiorcy może
+        przyjść z pliku konfiguracyjnego (``recipient_override``) i ma wtedy
+        pierwszeństwo przed ``ALERT_TO``.
+        """
         host = os.getenv("SMTP_HOST")
-        recipient = os.getenv("ALERT_TO")
+        recipient = recipient_override or os.getenv("ALERT_TO")
         if not host or not recipient:
             return None
         return cls(
@@ -225,10 +232,44 @@ def default_notifier() -> Notifier:
 # --------------------------------------------------------------------------
 # Główna pętla alertów
 # --------------------------------------------------------------------------
-def load_criteria(path: str | Path) -> list[AlertCriteria]:
+def load_config(path: str | Path) -> dict:
+    """Wczytuje plik konfiguracyjny i zwraca {'alerts': [...], 'email': {...}}."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    items = data.get("alerts", data) if isinstance(data, dict) else data
+    if isinstance(data, list):
+        return {"alerts": data, "email": {}}
+    return {"alerts": data.get("alerts", []), "email": data.get("email", {})}
+
+
+def load_criteria(path: str | Path) -> list[AlertCriteria]:
+    items = load_config(path)["alerts"]
     return [AlertCriteria.from_dict(d) for d in items]
+
+
+def build_notifier(channel: str, email_settings: Optional[dict] = None) -> Optional[Notifier]:
+    """Tworzy kanał powiadomień.
+
+    ``channel``: "auto" | "email" | "file" | "console".
+    Adres odbiorcy bierzemy z ``email_settings['to']`` (z pliku konfiguracji),
+    a dane SMTP ze zmiennych środowiskowych. Zwraca None, gdy zażądano e-maila,
+    a SMTP nie jest skonfigurowany.
+    """
+    email_settings = email_settings or {}
+    recipient = email_settings.get("to")
+
+    if channel == "console":
+        return ConsoleNotifier()
+    if channel == "file":
+        return FileNotifier()
+    if channel == "email":
+        cfg = EmailConfig.from_env(recipient_override=recipient)
+        return EmailNotifier(cfg) if cfg else None
+    # auto: e-mail jeśli skonfigurowany, inaczej plik.
+    cfg = EmailConfig.from_env(recipient_override=recipient)
+    if cfg:
+        log.info("Alerty e-mail będą wysyłane na %s", cfg.recipient)
+        return EmailNotifier(cfg)
+    log.info("Brak konfiguracji SMTP – alerty trafią do pliku %s", ALERT_LOG_PATH)
+    return FileNotifier()
 
 
 def run_alerts(
