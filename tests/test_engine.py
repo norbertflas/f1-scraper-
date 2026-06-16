@@ -42,12 +42,45 @@ def test_calendar_keys_stable_even_with_live_html():
     scraper = F1CalendarScraper(fetcher=_FakeFetcher(live_html))
     races, _ = scraper.scrape()
     keys = {r.key for r in races}
-    assert "italian-grand-prix" in keys
-    assert "monaco-grand-prix" in keys
-    assert len(races) >= 20
-    # URL wzbogacony z linku na żywo.
-    italy = next(r for r in races if r.key == "italian-grand-prix")
+    assert "2026-italian-grand-prix" in keys
+    assert "2026-monaco-grand-prix" in keys
+    assert len(races) >= 40  # dwa sezony
+    # URL wzbogacony z linku na żywo (2026).
+    italy = next(r for r in races if r.key == "2026-italian-grand-prix")
     assert italy.official_url.endswith("/racing/2026/italy.html")
+
+
+def test_2027_calendar_present_with_monaco_4day_and_abu_dhabi_last():
+    result = run_scrape(offline=True)
+    races_2027 = [r for r in result.races if r.season == 2027]
+    assert len(races_2027) >= 20
+    monaco = next(r for r in races_2027 if r.name == "Monaco Grand Prix")
+    assert monaco.weekend_days == 4
+    # Abu Dhabi to ostatni wyścig sezonu.
+    last = max(races_2027, key=lambda r: r.round)
+    assert last.name == "Abu Dhabi Grand Prix"
+
+
+def test_monaco_2027_has_4day_grandstand_and_pitlane():
+    result = run_scrape(offline=True)
+    rows = result.ranked_offers(season=2027, country="Monaco")
+    cats = {r["category"] for r in rows}
+    assert any("4-dniowy" in c for c in cats), "Monaco 2027 powinno mieć bilet 4-dniowy"
+    assert any("Doświadczenie" in c for c in cats), "powinien być Pit Lane Walk"
+    # Najtańsza trybuna 4-dniowa (z wykluczeniem GA przez jakość >= 5).
+    grandstands = result.ranked_offers(
+        season=2027, country="Monaco", category_contains="4-dniowy",
+        min_seat_quality=5, sort_by="price",
+    )
+    assert grandstands
+    assert grandstands[0]["price_eur"] <= grandstands[-1]["price_eur"]
+
+
+def test_region_filter():
+    result = run_scrape(offline=True)
+    rows = result.ranked_offers(region="Europa")
+    assert rows
+    assert all(r["region"] == "Europa" for r in rows)
 
 
 def test_value_score_prefers_cheaper_same_quality():

@@ -33,6 +33,9 @@ def main(argv: list[str] | None = None) -> int:
     p_top.add_argument("--max-price", type=float, default=None, help="maks. cena (EUR)")
     p_top.add_argument("--min-quality", type=float, default=None, help="min. jakość miejsca 1-10")
     p_top.add_argument("--country", default=None, help="filtr kraju")
+    p_top.add_argument("--season", type=int, default=None, help="filtr sezonu, np. 2027")
+    p_top.add_argument("--region", default=None, help="filtr regionu, np. Europa / Azja / 'Bliski Wschód'")
+    p_top.add_argument("--category", default=None, help="fragment kategorii, np. '4-dniowy'")
     p_top.add_argument("--source", default=None, choices=["circuit", "partner", "calendar"])
     p_top.add_argument("--covered", action="store_true", help="tylko zadaszone")
     p_top.add_argument("--sort", default="value", choices=["value", "price", "quality", "date"])
@@ -71,6 +74,9 @@ def main(argv: list[str] | None = None) -> int:
             max_price_eur=args.max_price,
             min_seat_quality=args.min_quality,
             country=args.country,
+            season=args.season,
+            region=args.region,
+            category_contains=args.category,
             source_type=args.source,
             covered_only=args.covered,
             sort_by=args.sort,
@@ -106,13 +112,16 @@ def _print_table(rows: list[dict]) -> None:
         print("Brak ofert spełniających kryteria.")
         return
     print(
-        f"{'WYŚCIG':<26}{'TRYBUNA':<26}{'CENA':>9}  {'JAKOŚĆ':>6}  {'WARTOŚĆ':>7}  ŹRÓDŁO"
+        f"{'SEZON':<6}{'WYŚCIG':<24}{'TRYBUNA':<28}{'KATEGORIA':<22}"
+        f"{'CENA':>9}  {'JAKOŚĆ':>6}  {'WARTOŚĆ':>7}  ŹRÓDŁO"
     )
-    print("-" * 100)
+    print("-" * 130)
     for r in rows:
         print(
-            f"{_t(r['race_name'],25):<26}"
-            f"{_t(r['grandstand'],25):<26}"
+            f"{str(r.get('season') or ''):<6}"
+            f"{_t(r['race_name'],23):<24}"
+            f"{_t(r['grandstand'],27):<28}"
+            f"{_t(r['category'],21):<22}"
             f"{r['price_eur']:>7.0f}€  "
             f"{r['seat_quality']:>6.1f}  "
             f"{r['value_score']:>7.1f}  "

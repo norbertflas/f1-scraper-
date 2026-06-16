@@ -6,9 +6,11 @@ Dodajesz nowe źródło? Dopisz jego klasę tutaj.
 from __future__ import annotations
 
 from .scrapers.base import BaseScraper
+from .scrapers.circuits.monaco import MonacoScraper
 from .scrapers.circuits.monza import MonzaScraper
 from .scrapers.circuits.silverstone import SilverstoneScraper
 from .scrapers.circuits.spa import SpaScraper
+from .scrapers.circuits.yas_marina import AbuDhabiScraper
 from .scrapers.f1_calendar import F1CalendarScraper
 from .scrapers.partners.f1experiences import F1ExperiencesScraper
 from .scrapers.partners.gootickets import GooTicketsScraper
@@ -16,9 +18,11 @@ from .scrapers.partners.gootickets import GooTicketsScraper
 # Kolejność ma znaczenie: kalendarz jako pierwszy (dostarcza listę wyścigów).
 SCRAPER_CLASSES: list[type[BaseScraper]] = [
     F1CalendarScraper,
+    MonacoScraper,
     MonzaScraper,
     SilverstoneScraper,
     SpaScraper,
+    AbuDhabiScraper,
     GooTicketsScraper,
     F1ExperiencesScraper,
 ]

@@ -26,6 +26,18 @@ FX_TO_EUR: dict[str, float] = {
     "CAD": 0.68,
 }
 
+# Przyporządkowanie kraju do regionu (do filtrowania Europa/Azja/...).
+REGION_BY_COUNTRY: dict[str, str] = {
+    "Monaco": "Europa", "Italy": "Europa", "United Kingdom": "Europa",
+    "Belgium": "Europa", "Netherlands": "Europa", "Spain": "Europa",
+    "Austria": "Europa", "Hungary": "Europa", "Azerbaijan": "Europa",
+    "Japan": "Azja", "China": "Azja", "Singapore": "Azja",
+    "Bahrain": "Bliski Wschód", "Saudi Arabia": "Bliski Wschód",
+    "Qatar": "Bliski Wschód", "UAE": "Bliski Wschód",
+    "USA": "Ameryki", "Canada": "Ameryki", "Mexico": "Ameryki", "Brazil": "Ameryki",
+    "Australia": "Oceania",
+}
+
 
 @dataclass
 class Race:
@@ -42,11 +54,18 @@ class Race:
     # Subiektywna popularność/atrakcyjność wyścigu (1–5). Używana w rankingu
     # "dobrego wyścigu". Można później wyliczać z danych (frekwencja, opinie).
     popularity: float = 3.0
+    season: int = 2026
+    # Liczba dni weekendu (Monaco = 4, z czwartkowym treningiem).
+    weekend_days: int = 3
 
     @property
     def key(self) -> str:
-        """Stabilny klucz do łączenia wyścigów z różnych źródeł."""
-        return _slug(self.name)
+        """Stabilny klucz (z sezonem) do łączenia wyścigów z różnych źródeł."""
+        return f"{self.season}-{_slug(self.name)}"
+
+    @property
+    def region(self) -> str:
+        return REGION_BY_COUNTRY.get(self.country, "Inne")
 
     @property
     def date_label(self) -> str:
@@ -62,6 +81,7 @@ class Race:
         d["date_end"] = self.date_end.isoformat() if self.date_end else None
         d["key"] = self.key
         d["date_label"] = self.date_label
+        d["region"] = self.region
         return d
 
 

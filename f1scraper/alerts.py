@@ -45,6 +45,9 @@ class AlertCriteria:
     source_type: Optional[str] = None  # "circuit" | "partner"
     covered_only: bool = False
     races: list[str] = field(default_factory=list)  # nazwy Race.name; puste = wszystkie
+    season: Optional[int] = None  # np. 2027
+    regions: list[str] = field(default_factory=list)  # np. ["Europa", "Azja"]
+    category_contains: Optional[str] = None  # np. "4-dniowy"
 
     def to_filters(self) -> dict:
         return dict(
@@ -53,6 +56,8 @@ class AlertCriteria:
             country=self.country,
             source_type=self.source_type,
             covered_only=self.covered_only,
+            season=self.season,
+            category_contains=self.category_contains,
             available_only=True,
         )
 
@@ -60,6 +65,11 @@ class AlertCriteria:
         if not self.races:
             return True
         return race_name in self.races
+
+    def matches_region(self, region: str) -> bool:
+        if not self.regions:
+            return True
+        return region in self.regions
 
     @classmethod
     def from_dict(cls, d: dict) -> "AlertCriteria":
@@ -71,13 +81,20 @@ class AlertCriteria:
             source_type=d.get("source_type"),
             covered_only=bool(d.get("covered_only", False)),
             races=list(d.get("races", [])),
+            season=d.get("season"),
+            regions=list(d.get("regions", [])),
+            category_contains=d.get("category_contains"),
         )
 
 
 def find_matches(result: ScrapeResult, criteria: AlertCriteria) -> list[dict]:
     """Zwraca oferty pasujące do kryteriów (posortowane wg wartości)."""
     rows = result.ranked_offers(sort_by="value", **criteria.to_filters())
-    return [r for r in rows if criteria.matches_race(r["race_name"])]
+    return [
+        r
+        for r in rows
+        if criteria.matches_race(r["race_name"]) and criteria.matches_region(r.get("region", ""))
+    ]
 
 
 def offer_signature(row: dict) -> str:

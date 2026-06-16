@@ -95,6 +95,32 @@ def test_email_body_has_concrete_info_and_link():
     assert "href='https://example.com/buy'" in html
 
 
+def test_alert_monaco_2027_4day_grandstand():
+    result = run_scrape(offline=True)
+    crit = AlertCriteria(
+        name="Monaco 2027 4-dniowa trybuna",
+        races=["Monaco Grand Prix"], season=2027,
+        category_contains="4-dniowy", min_seat_quality=5,
+    )
+    rows = find_matches(result, crit)
+    assert rows
+    assert all(r["season"] == 2027 for r in rows)
+    assert all("4-dniowy" in r["category"] for r in rows)
+    assert all(r["seat_quality"] >= 5 for r in rows)
+
+
+def test_alert_region_europe_asia_2027():
+    result = run_scrape(offline=True)
+    crit = AlertCriteria(
+        name="Europa/Azja 2027", season=2027,
+        regions=["Europa", "Azja"], max_price_eur=350,
+    )
+    rows = find_matches(result, crit)
+    assert rows
+    assert all(r["region"] in ("Europa", "Azja") for r in rows)
+    assert all(r["season"] == 2027 for r in rows)
+
+
 def test_criteria_from_dict_roundtrip():
     crit = AlertCriteria.from_dict({
         "name": "test", "races": ["Monaco Grand Prix"],

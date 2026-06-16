@@ -47,10 +47,14 @@ class ScrapeResult:
         covered_only: bool = False,
         available_only: bool = True,
         upcoming_only: bool = False,
+        season: Optional[int] = None,
+        region: Optional[str] = None,
+        category_contains: Optional[str] = None,
         sort_by: str = "value",
     ) -> list[dict]:
         """Zwraca oferty (jako dict) przefiltrowane i posortowane."""
         today = date.today()
+        cat = category_contains.lower() if category_contains else None
         rows: list[dict] = []
         for offer in self.offers:
             race = self._race_by_key.get(offer.race_key)
@@ -68,6 +72,12 @@ class ScrapeResult:
                 continue
             if country and race and race.country.lower() != country.lower():
                 continue
+            if season is not None and race and race.season != season:
+                continue
+            if region and race and race.region.lower() != region.lower():
+                continue
+            if cat and cat not in offer.category.lower():
+                continue
             if upcoming_only and race and race.date_end and race.date_end < today:
                 continue
 
@@ -76,6 +86,8 @@ class ScrapeResult:
             row["race_date"] = race.date_label if race else ""
             row["country"] = race.country if race else ""
             row["city"] = race.city if race else ""
+            row["season"] = race.season if race else None
+            row["region"] = race.region if race else ""
             rows.append(row)
 
         rows.sort(key=_sort_key(sort_by), reverse=_sort_desc(sort_by))
@@ -93,6 +105,12 @@ class ScrapeResult:
 
     def countries(self) -> list[str]:
         return sorted({r.country for r in self.races if r.country})
+
+    def seasons(self) -> list[int]:
+        return sorted({r.season for r in self.races})
+
+    def regions(self) -> list[str]:
+        return sorted({r.region for r in self.races if r.region})
 
     # -- serializacja ---------------------------------------------------
     def to_dict(self) -> dict:
@@ -201,6 +219,8 @@ def _race_from_dict(d: dict) -> Race:
         date_end=_parse_date(d.get("date_end")),
         official_url=d.get("official_url", ""),
         popularity=d.get("popularity", 3.0),
+        season=d.get("season", 2026),
+        weekend_days=d.get("weekend_days", 3),
     )
 
 

@@ -21,8 +21,27 @@
 </header>
 
 <form class="filters" method="get" action="{{ url_for('index') }}">
+  <label>Sezon
+    <select name="season">
+      <option value="">— wszystkie —</option>
+      {% for s in seasons %}
+        <option value="{{ s }}" {% if args.get('season')==s|string %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Region
+    <select name="region">
+      <option value="">— wszystkie —</option>
+      {% for r in regions %}
+        <option value="{{ r }}" {% if args.get('region')==r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </label>
   <label>Maks. cena (€)
     <input type="number" name="max_price" min="0" step="10" value="{{ args.get('max_price','') }}">
+  </label>
+  <label>Kategoria zawiera
+    <input type="text" name="category" placeholder="np. 4-dniowy" value="{{ args.get('category','') }}">
   </label>
   <label>Min. jakość miejsca
     <input type="number" name="min_quality" min="0" max="10" step="0.5" value="{{ args.get('min_quality','') }}">
@@ -62,7 +81,7 @@
   <table>
     <thead>
       <tr>
-        <th>Wyścig</th><th>Termin</th><th>Trybuna</th><th>Kategoria</th>
+        <th>Sezon</th><th>Wyścig</th><th>Termin</th><th>Trybuna</th><th>Kategoria</th>
         <th>Cena</th><th>Jakość</th><th>Wartość</th><th>Dostępność</th>
         <th>Źródło</th><th></th>
       </tr>
@@ -70,7 +89,8 @@
     <tbody>
       {% for r in rows %}
       <tr class="avail-{{ r.availability }}">
-        <td class="race">{{ r.race_name }}<span class="loc">{{ r.city }}, {{ r.country }}</span></td>
+        <td class="season">{{ r.season }}</td>
+        <td class="race">{{ r.race_name }}<span class="loc">{{ r.city }}, {{ r.country }} · {{ r.region }}</span></td>
         <td>{{ r.race_date }}</td>
         <td>{{ r.grandstand }}{% if r.covered %} <span class="badge">zadaszona</span>{% endif %}
             {% if r.view_notes %}<span class="notes">{{ r.view_notes }}</span>{% endif %}</td>
@@ -84,7 +104,7 @@
         <td>{% if r.buy_url %}<a class="buy" href="{{ r.buy_url }}" target="_blank" rel="noopener">Kup →</a>{% endif %}</td>
       </tr>
       {% else %}
-      <tr><td colspan="10" class="empty">Brak ofert spełniających kryteria.</td></tr>
+      <tr><td colspan="11" class="empty">Brak ofert spełniających kryteria.</td></tr>
       {% endfor %}
     </tbody>
   </table>

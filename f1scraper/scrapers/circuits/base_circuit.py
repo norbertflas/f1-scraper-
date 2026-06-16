@@ -37,6 +37,8 @@ class CircuitScraper(BaseScraper):
     currency: str = "EUR"
     #: Mnożnik ceny dla danych zapasowych (1.0 = ceny "oficjalne" toru).
     price_multiplier: float = 1.0
+    #: Sezony, dla których generujemy oferty (puste = wszystkie z kalendarza).
+    seasons: list[int] = []
 
     def scrape(self) -> tuple[list[Race], list[TicketOffer]]:
         offers: list[TicketOffer] = []
@@ -50,14 +52,19 @@ class CircuitScraper(BaseScraper):
         return [], offers
 
     def _fallback_offers(self) -> list[TicketOffer]:
-        return data_fallback.sample_offers_for(
-            race_name=self.race_name,
-            source_type=self.source_type,
-            source_name=self.name,
-            base_currency=self.currency,
-            base_url=self.tickets_url,
-            price_multiplier=self.price_multiplier,
-        )
+        offers: list[TicketOffer] = []
+        for race in data_fallback.find_races(self.race_name, self.seasons or None):
+            offers.extend(
+                data_fallback.sample_offers_for(
+                    race=race,
+                    source_type=self.source_type,
+                    source_name=self.name,
+                    base_currency=self.currency,
+                    base_url=self.tickets_url,
+                    price_multiplier=self.price_multiplier,
+                )
+            )
+        return offers
 
     def _parse(self, html: str) -> list[TicketOffer]:
         """Domyślnie próbuje danych strukturalnych schema.org (JSON-LD).
@@ -90,8 +97,10 @@ class CircuitScraper(BaseScraper):
         return offers
 
     # Pomocnik dla podklas: powiązanie oferty z wyścigiem po nazwie.
+    # Dla parsowania na żywo bierzemy najbliższy sezon (live = bieżąca sprzedaż).
     def _race_key(self) -> str:
-        race = data_fallback.race_by_name(self.race_name)
+        season = min(self.seasons) if self.seasons else None
+        race = data_fallback.race_by_name(self.race_name, season)
         return race.key if race else ""
 
     @staticmethod

@@ -47,7 +47,7 @@ Oferty wyprzedane mają wartość 0; „ostatnie sztuki” są lekko karane.
 | Typ | Przykłady | Status |
 |-----|-----------|--------|
 | `calendar` | formula1.com | kalendarz sezonu |
-| `circuit` | Monza, Silverstone, Spa | strony torów |
+| `circuit` | Monaco, Monza, Silverstone, Spa, Abu Dhabi | strony torów |
 | `partner` | GooTickets, F1 Experiences | autoryzowani resellerzy |
 
 Strony F1 i partnerów są chronione anty-botem, a ich HTML zmienia się co sezon.
@@ -68,6 +68,36 @@ pokazuje, a strukturę danych łatwo porównać.
 > Przed włączeniem pobierania na żywo upewnij się, że masz do tego prawo
 > (zgoda / program afiliacyjny / publiczne API).
 
+## Sezony i regiony
+
+Narzędzie obsługuje wiele sezonów (obecnie **2026 i 2027**). Tożsamość wyścigu
+jest unikalna per sezon (klucz `2027-monaco-grand-prix`), więc oferty 2026 i 2027
+nie mieszają się. Każdy wyścig ma region (Europa / Azja / Bliski Wschód / Ameryki
+/ Oceania) do szybkiego filtrowania.
+
+> ⚠️ Kalendarz i ceny **2027** nie są jeszcze oficjalnie potwierdzone przez F1 —
+> to realistyczny szablon (`data_fallback.py`) do aktualizacji po publikacji.
+> Monaco jest oznaczone jako weekend **4-dniowy**; każdy wyścig ma też dodatek
+> **Pit Lane Walk**.
+
+Przykłady (CLI):
+
+```bash
+# Monaco 2027 – najtańsza trybuna 4-dniowa (bez General Admission)
+python -m f1scraper.cli top --season 2027 --country Monaco \
+    --category 4-dniowy --min-quality 5 --sort price
+
+# Monaco 2027 – Pit Lane Walk
+python -m f1scraper.cli top --season 2027 --country Monaco --category Doświadczenie
+
+# Abu Dhabi 2027 (finał sezonu) – najlepsza wartość
+python -m f1scraper.cli top --season 2027 --country UAE --sort value
+
+# Europejskie i azjatyckie wyścigi 2027 do 350 €
+python -m f1scraper.cli top --season 2027 --region Europa --max-price 350
+python -m f1scraper.cli top --season 2027 --region Azja --max-price 350
+```
+
 ## Alerty (powiadomienia o okazjach)
 
 Definiujesz kryteria w pliku JSON (`alerts_config.example.json` jako wzór):
@@ -77,14 +107,33 @@ Definiujesz kryteria w pliku JSON (`alerts_config.example.json` jako wzór):
   "email": { "to": "norbertflas@hotmail.com" },
   "alerts": [
     {
-      "name": "Monza – dobra trybuna w budżecie",
-      "races": ["Italian Grand Prix"],
-      "max_price_eur": 500,
-      "min_seat_quality": 8
+      "name": "Monaco 2027 – najtańsza trybuna 4-dniowa",
+      "races": ["Monaco Grand Prix"],
+      "season": 2027,
+      "category_contains": "4-dniowy",
+      "min_seat_quality": 5,
+      "max_price_eur": 1200
+    },
+    {
+      "name": "Abu Dhabi 2027 – finał sezonu",
+      "races": ["Abu Dhabi Grand Prix"],
+      "season": 2027,
+      "max_price_eur": 900
+    },
+    {
+      "name": "Europa/Azja 2027 – okazje",
+      "season": 2027,
+      "regions": ["Europa", "Azja"],
+      "max_price_eur": 350,
+      "min_seat_quality": 6
     }
   ]
 }
 ```
+
+Pola kryteriów: `races`, `season`, `regions`, `country`, `source_type`
+(`circuit`/`partner`), `category_contains` (np. `"4-dniowy"`, `"Doświadczenie"`
+dla Pit Lane Walk), `max_price_eur`, `min_seat_quality`, `covered_only`.
 
 Adres odbiorcy (`email.to`) bierzemy z pliku konfiguracji. Każdy e-mail
 zawiera komplet informacji o ofercie (wyścig, trybuna, kategoria, cena w €,

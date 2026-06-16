@@ -21,7 +21,7 @@ from .base import BaseScraper
 
 log = logging.getLogger("f1scraper.calendar")
 
-SCHEDULE_URL = "https://www.formula1.com/en/racing/2026.html"
+SCHEDULE_URL = "https://www.formula1.com/en/racing/{year}.html"
 
 
 class F1CalendarScraper(BaseScraper):
@@ -29,14 +29,16 @@ class F1CalendarScraper(BaseScraper):
     source_type = "calendar"
 
     def scrape(self) -> tuple[list[Race], list[TicketOffer]]:
-        # Kanoniczny kalendarz = stabilna tożsamość wyścigów (klucze, nazwy).
-        races = data_fallback.calendar_2026()
-        html = self.fetcher.get(SCHEDULE_URL)
-        if html:
-            enriched = self._enrich_urls(races, html)
-            log.info("Kalendarz F1: wzbogacono %d adresów na żywo", enriched)
-        else:
-            log.info("Kalendarz F1 niedostępny na żywo – używam kanonicznego.")
+        # Kanoniczny kalendarz (wszystkie sezony) = stabilna tożsamość wyścigów.
+        races = data_fallback.all_races()
+        for year in data_fallback.SEASONS:
+            html = self.fetcher.get(SCHEDULE_URL.format(year=year))
+            if html:
+                season_races = [r for r in races if r.season == year]
+                enriched = self._enrich_urls(season_races, html)
+                log.info("Kalendarz F1 %d: wzbogacono %d adresów", year, enriched)
+            else:
+                log.info("Kalendarz F1 %d niedostępny na żywo – kanoniczny.", year)
         return races, []
 
     def _enrich_urls(self, races: list[Race], html: str) -> int:

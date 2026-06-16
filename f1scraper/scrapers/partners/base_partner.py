@@ -22,6 +22,8 @@ class PartnerScraper(BaseScraper):
     price_multiplier: float = 1.15
     #: Lista nazw wyścigów (Race.name) obsługiwanych przez partnera.
     covered_races: list[str] = []
+    #: Sezony, dla których partner sprzedaje bilety (puste = wszystkie).
+    seasons: list[int] = []
 
     def scrape(self) -> tuple[list[Race], list[TicketOffer]]:
         offers: list[TicketOffer] = []
@@ -37,16 +39,17 @@ class PartnerScraper(BaseScraper):
     def _fallback_offers(self) -> list[TicketOffer]:
         offers: list[TicketOffer] = []
         for race_name in self.covered_races:
-            offers.extend(
-                data_fallback.sample_offers_for(
-                    race_name=race_name,
-                    source_type=self.source_type,
-                    source_name=self.name,
-                    base_currency=self.currency,
-                    base_url=self.base_url,
-                    price_multiplier=self.price_multiplier,
+            for race in data_fallback.find_races(race_name, self.seasons or None):
+                offers.extend(
+                    data_fallback.sample_offers_for(
+                        race=race,
+                        source_type=self.source_type,
+                        source_name=self.name,
+                        base_currency=self.currency,
+                        base_url=self.base_url,
+                        price_multiplier=self.price_multiplier,
+                    )
                 )
-            )
         return offers
 
     def _parse(self, html: str) -> list[TicketOffer]:  # noqa: ARG002
