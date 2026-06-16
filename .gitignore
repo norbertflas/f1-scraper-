@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+data/http_cache/
+data/results.json
+.DS_Store
