@@ -1,0 +1,22 @@
+{
+  "alerts": [
+    {
+      "name": "Monza – dobra trybuna w budżecie",
+      "races": ["Italian Grand Prix"],
+      "max_price_eur": 500,
+      "min_seat_quality": 8,
+      "covered_only": false
+    },
+    {
+      "name": "Klasyki – okazje cenowe",
+      "races": ["Belgian Grand Prix", "British Grand Prix", "Monaco Grand Prix"],
+      "max_price_eur": 300,
+      "min_seat_quality": 6
+    },
+    {
+      "name": "Cokolwiek taniego od torów",
+      "source_type": "circuit",
+      "max_price_eur": 150
+    }
+  ]
+}

@@ -4,6 +4,7 @@ Przykłady:
     python -m f1scraper.cli refresh                 # zescrapuj i zapisz wyniki
     python -m f1scraper.cli top --max-price 400     # pokaż najlepsze okazje
     python -m f1scraper.cli top --sort price --limit 10
+    python -m f1scraper.cli alerts --config alerts_config.json   # powiadom o okazjach
 """
 
 from __future__ import annotations
@@ -37,6 +38,12 @@ def main(argv: list[str] | None = None) -> int:
     p_top.add_argument("--sort", default="value", choices=["value", "price", "quality", "date"])
     p_top.add_argument("--limit", type=int, default=15)
     p_top.add_argument("--best-per-race", action="store_true", help="jedna najlepsza oferta na wyścig")
+
+    p_al = sub.add_parser("alerts", help="powiadom o nowych ofertach wg kryteriów")
+    p_al.add_argument("--config", required=True, help="plik JSON z kryteriami (zob. alerts_config.example.json)")
+    p_al.add_argument("--no-refresh", action="store_true", help="użyj zapisanych wyników zamiast scrapować")
+    p_al.add_argument("--channel", choices=["auto", "email", "file", "console"], default="auto",
+                      help="kanał powiadomień (domyślnie: e-mail jeśli skonfigurowany, inaczej plik)")
 
     args = parser.parse_args(argv)
     logging.basicConfig(
@@ -74,6 +81,36 @@ def main(argv: list[str] | None = None) -> int:
             else result.ranked_offers(**filters)
         )
         _print_table(rows[: args.limit])
+        return 0
+
+    if args.cmd == "alerts":
+        from .alerts import (
+            ConsoleNotifier,
+            EmailConfig,
+            EmailNotifier,
+            FileNotifier,
+            default_notifier,
+            load_criteria,
+            run_alerts,
+        )
+
+        criteria = load_criteria(args.config)
+        if args.channel == "console":
+            notifier = ConsoleNotifier()
+        elif args.channel == "file":
+            notifier = FileNotifier()
+        elif args.channel == "email":
+            cfg = EmailConfig.from_env()
+            if cfg is None:
+                print("Brak konfiguracji SMTP w zmiennych środowiskowych "
+                      "(SMTP_HOST, ALERT_TO, ...). Przerywam.")
+                return 1
+            notifier = EmailNotifier(cfg)
+        else:
+            notifier = default_notifier()
+
+        matches = run_alerts(criteria, notifier, refresh=not args.no_refresh)
+        print(f"Sprawdzono {len(criteria)} kryteriów. Nowych trafień: {len(matches)}.")
         return 0
 
     return 1

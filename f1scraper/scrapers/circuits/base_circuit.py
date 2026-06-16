@@ -16,6 +16,11 @@ from bs4 import BeautifulSoup
 
 from ... import data_fallback
 from ...models import Race, TicketOffer
+from ...parsing import (
+    extract_jsonld_offers,
+    guess_covered,
+    guess_seat_quality,
+)
 from ..base import BaseScraper
 
 log = logging.getLogger("f1scraper.circuit")
@@ -54,9 +59,35 @@ class CircuitScraper(BaseScraper):
             price_multiplier=self.price_multiplier,
         )
 
-    # Domyślnie brak parsowania na żywo – nadpisz w konkretnym torze.
-    def _parse(self, html: str) -> list[TicketOffer]:  # noqa: ARG002
-        return []
+    def _parse(self, html: str) -> list[TicketOffer]:
+        """Domyślnie próbuje danych strukturalnych schema.org (JSON-LD).
+
+        Wiele serwisów biletowych publikuje oferty jako Event/Product z polem
+        ``offers``. Jeśli ich nie ma, zwracamy [] i wpada fallback. Konkretny
+        tor może nadpisać tę metodę własnymi selektorami HTML (patrz Monza).
+        """
+        return self._offers_from_jsonld(html)
+
+    def _offers_from_jsonld(self, html: str) -> list[TicketOffer]:
+        race_key = self._race_key()
+        offers: list[TicketOffer] = []
+        for item in extract_jsonld_offers(html):
+            offers.append(
+                TicketOffer(
+                    race_key=race_key,
+                    source_type=self.source_type,
+                    source_name=self.name,
+                    grandstand=item["name"],
+                    category="Weekend 3-dniowy",
+                    price=item["price"],
+                    currency=item["currency"] or self.currency,
+                    seat_quality=guess_seat_quality(item["name"]),
+                    covered=guess_covered(item["name"]),
+                    availability=item["availability"],
+                    buy_url=item["url"] or self.tickets_url,
+                )
+            )
+        return offers
 
     # Pomocnik dla podklas: powiązanie oferty z wyścigiem po nazwie.
     def _race_key(self) -> str:

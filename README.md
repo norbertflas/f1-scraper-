@@ -22,6 +22,10 @@ python app.py            # http://127.0.0.1:5000
 
 # 2b) ...albo w terminalu:
 python -m f1scraper.cli top --max-price 400 --sort value --best-per-race
+
+# 3) Alerty – powiadom mnie, gdy pojawi się bilet w moim budżecie/jakości
+cp alerts_config.example.json alerts_config.json   # i dostosuj kryteria
+python -m f1scraper.cli alerts --config alerts_config.json
 ```
 
 ## Jak liczona jest „wartość”
@@ -64,6 +68,68 @@ pokazuje, a strukturę danych łatwo porównać.
 > Przed włączeniem pobierania na żywo upewnij się, że masz do tego prawo
 > (zgoda / program afiliacyjny / publiczne API).
 
+## Alerty (powiadomienia o okazjach)
+
+Definiujesz kryteria w pliku JSON (`alerts_config.example.json` jako wzór):
+
+```json
+{
+  "alerts": [
+    {
+      "name": "Monza – dobra trybuna w budżecie",
+      "races": ["Italian Grand Prix"],
+      "max_price_eur": 500,
+      "min_seat_quality": 8
+    }
+  ]
+}
+```
+
+Uruchomienie sprawdza oferty i powiadamia o **nowych** trafieniach:
+
+```bash
+python -m f1scraper.cli alerts --config alerts_config.json [--channel auto|email|file|console] [--no-refresh]
+```
+
+- **Deduplikacja**: każda oferta ma „podpis” (wyścig+trybuna+źródło+cena+dostępność)
+  zapisywany w `data/alert_state.json` — nie dostaniesz tego samego alertu dwa
+  razy. Zmiana ceny lub dostępności = nowy alert.
+- **Kanały**: `email` (SMTP), `file` (`data/alerts.jsonl`), `console`.
+  Tryb `auto` wybiera e-mail, jeśli skonfigurowany, inaczej plik.
+
+### Konfiguracja e-maila (zmienne środowiskowe)
+
+```bash
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+export SMTP_USER=ty@gmail.com
+export SMTP_PASS=haslo_aplikacji      # NIE zwykłe hasło – użyj App Password
+export ALERT_FROM=ty@gmail.com
+export ALERT_TO=ty@gmail.com
+```
+
+Najlepiej uruchamiać cyklicznie (np. `cron` co godzinę):
+
+```cron
+0 * * * * cd /sciezka/f1-scraper- && .venv/bin/python -m f1scraper.cli alerts --config alerts_config.json
+```
+
+## Parsowanie na żywo
+
+`f1scraper/parsing.py` zawiera odporne, testowalne offline narzędzia:
+
+- `parse_price` — radzi sobie z `"1.234,50 €"`, `"1,234.50"`, `"£295"`, `"99 zł"`,
+- `detect_currency` — waluta z symbolu/kodu,
+- `extract_jsonld_offers` — **dane strukturalne schema.org** (Event/Product +
+  `offers`), które publikuje wiele serwisów biletowych — działa bez pisania
+  selektorów pod konkretną stronę,
+- `guess_seat_quality` / `guess_covered` — heurystyki oceny miejsca z nazwy trybuny.
+
+Bazowy `CircuitScraper._parse` próbuje JSON-LD automatycznie. Scraper **Monzy**
+(`scrapers/circuits/monza.py`) jest dostrojony jako pełny przykład: najpierw
+JSON-LD, a w razie braku — odporne parsowanie kart HTML (wiele selektorów
+kandydujących, wykrywanie dostępności „last/sold out”, linki absolutne).
+
 ## Architektura
 
 ```
@@ -71,9 +137,11 @@ app.py                      # dashboard Flask
 f1scraper/
 ├── models.py               # Race, TicketOffer, ranking (value_score)
 ├── fetch.py                # PoliteFetcher (robots.txt, rate limit, cache)
+├── parsing.py              # parse_price, JSON-LD, heurystyki jakości miejsca
+├── alerts.py               # kryteria, dopasowanie, dedupe, e-mail/plik/konsola
 ├── engine.py               # uruchamia scrapery, scala dane, filtruje/sortuje
 ├── registry.py             # lista aktywnych scraperów  ← tu dodajesz nowe
-├── cli.py                  # interfejs wiersza poleceń
+├── cli.py                  # interfejs wiersza poleceń (refresh/top/alerts)
 ├── data_fallback.py        # kalendarz 2026 + przykładowe oferty
 └── scrapers/
     ├── base.py             # BaseScraper (wspólny interfejs)

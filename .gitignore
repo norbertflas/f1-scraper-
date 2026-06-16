@@ -3,4 +3,7 @@ __pycache__/
 *.pyc
 data/http_cache/
 data/results.json
+data/alert_state.json
+data/alerts.jsonl
+alerts_config.json
 .DS_Store
