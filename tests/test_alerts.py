@@ -28,7 +28,7 @@ class RecordingNotifier(Notifier):
 
 
 def test_find_matches_respects_criteria():
-    result = run_scrape()
+    result = run_scrape(offline=True)
     crit = AlertCriteria(
         name="Monza tanio", races=["Italian Grand Prix"], max_price_eur=300
     )
@@ -39,7 +39,7 @@ def test_find_matches_respects_criteria():
 
 
 def test_run_alerts_dedupes(tmp_path):
-    result = run_scrape()
+    result = run_scrape(offline=True)
     state = tmp_path / "state.json"
     crit = [AlertCriteria(name="tanie tory", source_type="circuit", max_price_eur=200)]
     notifier = RecordingNotifier()

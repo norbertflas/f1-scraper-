@@ -133,14 +133,33 @@ def _sort_desc(sort_by: str) -> bool:
     return sort_by != "price"
 
 
+class _OfflineFetcher:
+    """Fetcher, który nigdy nie sięga do sieci (wymusza dane zapasowe).
+
+    Używany w testach, żeby wynik był deterministyczny niezależnie od tego,
+    czy runner CI ma dostęp do internetu.
+    """
+
+    def get(self, url: str, use_cache: bool = True) -> None:  # noqa: ARG002
+        return None
+
+
 def run_scrape(
     respect_robots: bool = True,
     use_cache: bool = True,
+    offline: bool = False,
 ) -> ScrapeResult:
-    """Uruchamia wszystkie scrapery i zwraca scalony wynik."""
-    fetcher = PoliteFetcher(respect_robots=respect_robots)
-    if not use_cache:
-        fetcher.cache_ttl = 0
+    """Uruchamia wszystkie scrapery i zwraca scalony wynik.
+
+    ``offline=True`` wymusza dane zapasowe (bez ruchu sieciowego) – przydatne
+    w testach i do szybkiego demo.
+    """
+    if offline:
+        fetcher = _OfflineFetcher()
+    else:
+        fetcher = PoliteFetcher(respect_robots=respect_robots)
+        if not use_cache:
+            fetcher.cache_ttl = 0
 
     scrapers = build_scrapers(fetcher)
     all_races: dict[str, Race] = {}

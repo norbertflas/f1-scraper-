@@ -1,8 +1,12 @@
 """Scraper oficjalnego kalendarza Formuły 1 (formula1.com).
 
 Strona F1 jest renderowana po stronie klienta i chroniona anty-botem, więc
-parsowanie HTML jest "best effort". Gdy się nie powiedzie, używamy wbudowanego
-kalendarza z ``data_fallback``.
+nie traktujemy jej jako źródła tożsamości wyścigów. Źródłem prawdy jest
+kanoniczny kalendarz sezonu (``data_fallback``) – dzięki temu klucze wyścigów
+są stabilne i zgodne z tym, do czego odwołują się scrapery torów/partnerów.
+
+Gdy stronę uda się pobrać, wzbogacamy jedynie ``official_url`` poszczególnych
+wyścigów (best effort). Niepowodzenie pobrania niczego nie psuje.
 """
 
 from __future__ import annotations
@@ -25,50 +29,52 @@ class F1CalendarScraper(BaseScraper):
     source_type = "calendar"
 
     def scrape(self) -> tuple[list[Race], list[TicketOffer]]:
+        # Kanoniczny kalendarz = stabilna tożsamość wyścigów (klucze, nazwy).
+        races = data_fallback.calendar_2026()
         html = self.fetcher.get(SCHEDULE_URL)
         if html:
-            races = self._parse(html)
-            if races:
-                return races, []
-            log.info("Parsowanie kalendarza F1 nie dało wyników – fallback.")
+            enriched = self._enrich_urls(races, html)
+            log.info("Kalendarz F1: wzbogacono %d adresów na żywo", enriched)
         else:
-            log.info("Nie udało się pobrać kalendarza F1 – fallback.")
-        # Fallback: wbudowany kalendarz sezonu.
-        return data_fallback.calendar_2026(), []
+            log.info("Kalendarz F1 niedostępny na żywo – używam kanonicznego.")
+        return races, []
 
-    def _parse(self, html: str) -> list[Race]:
-        """Best-effort parsowanie listy wyścigów.
+    def _enrich_urls(self, races: list[Race], html: str) -> int:
+        """Best-effort: dopasuj linki ze strony do kanonicznych wyścigów.
 
-        Selektory celowo są ostrożne – jeśli układ strony się zmieni, po
-        prostu zwracamy pustą listę i wpada fallback.
+        Dopasowanie po fragmencie kraju/miasta/nazwie GP w adresie linku.
+        Brak dopasowania = po prostu zostaje kanoniczny ``official_url``.
         """
         soup = BeautifulSoup(html, "lxml")
-        races: list[Race] = []
-        # F1 oznacza karty wyścigów linkami zawierającymi /racing/2026/<kraj>.
-        seen: set[str] = set()
-        for idx, link in enumerate(soup.select('a[href*="/racing/2026/"]'), start=1):
-            href = link.get("href", "")
-            if href in seen:
-                continue
-            text = link.get_text(" ", strip=True)
-            if not text:
-                continue
-            seen.add(href)
-            name = text.split("\n")[0][:80]
-            races.append(
-                Race(
-                    round=len(races) + 1,
-                    name=name,
-                    circuit="",
-                    country="",
-                    city="",
-                    official_url=self._absolute(href),
-                )
-            )
-        return races
+        count = 0
+        for link in soup.select('a[href*="/racing/2026/"]'):
+            href = self._absolute(link.get("href", ""))
+            slug = href.lower()
+            for race in races:
+                if race.official_url and "/racing/2026/" in race.official_url:
+                    # już wzbogacony konkretnym adresem – pomiń
+                    continue
+                if self._matches(race, slug):
+                    race.official_url = href
+                    count += 1
+                    break
+        return count
+
+    @staticmethod
+    def _matches(race: Race, slug: str) -> bool:
+        tokens = {
+            _norm(race.country),
+            _norm(race.city),
+            _norm(race.name.split(" Grand Prix")[0]),
+        }
+        return any(tok and tok in slug for tok in tokens)
 
     @staticmethod
     def _absolute(href: str) -> str:
         if href.startswith("http"):
             return href
         return "https://www.formula1.com" + href
+
+
+def _norm(text: str) -> str:
+    return "".join(c for c in text.lower() if c.isalnum())
