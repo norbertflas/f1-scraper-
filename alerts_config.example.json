@@ -1,0 +1,34 @@
+{
+  "email": {
+    "to": "norbertflas@hotmail.com"
+  },
+  "alerts": [
+    {
+      "name": "Monaco 2027 – najtańsza trybuna 4-dniowa",
+      "races": ["Monaco Grand Prix"],
+      "season": 2027,
+      "category_contains": "4-dniowy",
+      "min_seat_quality": 5,
+      "max_price_eur": 1200
+    },
+    {
+      "name": "Monaco 2027 – Pit Lane Walk (add-on)",
+      "races": ["Monaco Grand Prix"],
+      "season": 2027,
+      "category_contains": "Doświadczenie"
+    },
+    {
+      "name": "Abu Dhabi 2027 – finał sezonu",
+      "races": ["Abu Dhabi Grand Prix"],
+      "season": 2027,
+      "max_price_eur": 900
+    },
+    {
+      "name": "Europa/Azja 2027 – okazje cenowe",
+      "season": 2027,
+      "regions": ["Europa", "Azja"],
+      "max_price_eur": 350,
+      "min_seat_quality": 6
+    }
+  ]
+}

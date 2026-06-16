@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F1 Ticket Scraper — najlepsze bilety na wyścigi</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>🏁 F1 Ticket Scraper</h1>
+    <form action="{{ url_for('refresh') }}" method="post">
+      <button class="refresh" type="submit">↻ Odśwież dane</button>
+    </form>
+  </div>
+  <p class="meta">
+    {{ total_races }} wyścigów · {{ total_offers }} ofert ·
+    ostatnia aktualizacja: {{ scraped_at }}
+  </p>
+</header>
+
+<form class="filters" method="get" action="{{ url_for('index') }}">
+  <label>Sezon
+    <select name="season">
+      <option value="">— wszystkie —</option>
+      {% for s in seasons %}
+        <option value="{{ s }}" {% if args.get('season')==s|string %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Region
+    <select name="region">
+      <option value="">— wszystkie —</option>
+      {% for r in regions %}
+        <option value="{{ r }}" {% if args.get('region')==r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Maks. cena (€)
+    <input type="number" name="max_price" min="0" step="10" value="{{ args.get('max_price','') }}">
+  </label>
+  <label>Kategoria zawiera
+    <input type="text" name="category" placeholder="np. 4-dniowy" value="{{ args.get('category','') }}">
+  </label>
+  <label>Min. jakość miejsca
+    <input type="number" name="min_quality" min="0" max="10" step="0.5" value="{{ args.get('min_quality','') }}">
+  </label>
+  <label>Kraj
+    <select name="country">
+      <option value="">— wszystkie —</option>
+      {% for c in countries %}
+        <option value="{{ c }}" {% if args.get('country')==c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Źródło
+    <select name="source">
+      <option value="">— wszystkie —</option>
+      <option value="circuit" {% if args.get('source')=='circuit' %}selected{% endif %}>Tory</option>
+      <option value="partner" {% if args.get('source')=='partner' %}selected{% endif %}>Partnerzy</option>
+    </select>
+  </label>
+  <label>Sortuj
+    <select name="sort">
+      <option value="value" {% if args.get('sort','value')=='value' %}selected{% endif %}>Wartość (deal)</option>
+      <option value="price" {% if args.get('sort')=='price' %}selected{% endif %}>Cena rosnąco</option>
+      <option value="quality" {% if args.get('sort')=='quality' %}selected{% endif %}>Jakość miejsca</option>
+      <option value="date" {% if args.get('sort')=='date' %}selected{% endif %}>Data</option>
+    </select>
+  </label>
+  <label class="check"><input type="checkbox" name="covered" value="1" {% if args.get('covered')=='1' %}checked{% endif %}> tylko zadaszone</label>
+  <label class="check"><input type="checkbox" name="upcoming" value="1" {% if args.get('upcoming')=='1' %}checked{% endif %}> tylko nadchodzące</label>
+  <label class="check"><input type="checkbox" name="best" value="1" {% if best_per_race %}checked{% endif %}> najlepsza na wyścig</label>
+  <button type="submit">Filtruj</button>
+  <a class="reset" href="{{ url_for('index') }}">wyczyść</a>
+</form>
+
+<main>
+  <p class="count">{{ rows|length }} ofert</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Sezon</th><th>Wyścig</th><th>Termin</th><th>Trybuna</th><th>Kategoria</th>
+        <th>Cena</th><th>Jakość</th><th>Wartość</th><th>Dostępność</th>
+        <th>Źródło</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="avail-{{ r.availability }}">
+        <td class="season">{{ r.season }}</td>
+        <td class="race">{{ r.race_name }}<span class="loc">{{ r.city }}, {{ r.country }} · {{ r.region }}</span></td>
+        <td>{{ r.race_date }}</td>
+        <td>{{ r.grandstand }}{% if r.covered %} <span class="badge">zadaszona</span>{% endif %}
+            {% if r.view_notes %}<span class="notes">{{ r.view_notes }}</span>{% endif %}</td>
+        <td>{{ r.category }}</td>
+        <td class="price">{{ '%.0f'|format(r.price_eur) }} €
+            {% if r.currency != 'EUR' %}<span class="orig">{{ '%.0f'|format(r.price) }} {{ r.currency }}</span>{% endif %}</td>
+        <td><span class="q q{{ (r.seat_quality)|round|int }}">{{ '%.1f'|format(r.seat_quality) }}</span></td>
+        <td class="value">{{ '%.1f'|format(r.value_score) }}</td>
+        <td class="availcell">{{ r.availability }}</td>
+        <td class="src src-{{ r.source_type }}">{{ r.source_name }}</td>
+        <td>{% if r.buy_url %}<a class="buy" href="{{ r.buy_url }}" target="_blank" rel="noopener">Kup →</a>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="11" class="empty">Brak ofert spełniających kryteria.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+
+<footer>
+  <p>Dane scrapowane z kalendarza F1, stron torów i autoryzowanych partnerów.
+  „Wartość” = jakość miejsca × atrakcyjność wyścigu ÷ cena. Ceny przeliczone do € (kursy przybliżone).</p>
+</footer>
+</body>
+</html>
